@@ -62,25 +62,17 @@ func CourseSearch(c *gin.Context) {
 // @Success		200	{object}	schema.APIResponse[schema.Course]	"A course"
 // @Failure		500	{object}	schema.APIResponse[string]			"A string describing the error"
 func CourseById(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	var course schema.Course
 
-	// parse object id from id parameter
 	query, err := getQuery[schema.Course]("ById", c)
 	if err != nil {
 		return
 	}
 
-	// find and parse matching course
-	err = courseCollection.FindOne(ctx, query).Decode(&course)
-	if err != nil {
-		respondWithInternalError(c, err)
+	if err := executeFindOne(c, courseCollection, query, &course); err != nil {
 		return
 	}
 
-	// return result
 	respond(c, http.StatusOK, "success", course)
 }
 

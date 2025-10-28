@@ -1,9 +1,7 @@
 package controllers
 
 import (
-	"context"
 	"net/http"
-	"time"
 
 	"github.com/UTDNebula/nebula-api/api/configs"
 
@@ -72,25 +70,17 @@ func SectionSearch(c *gin.Context) {
 // @Failure		500	{object}	schema.APIResponse[string]			"A string describing the error"
 // @Failure		400	{object}	schema.APIResponse[string]			"A string describing the error"
 func SectionById(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	var section schema.Section
 
-	// parse object id from id parameter
 	query, err := getQuery[schema.Section]("ById", c)
 	if err != nil {
 		return
 	}
 
-	// find and parse matching section
-	err = sectionCollection.FindOne(ctx, query).Decode(&section)
-	if err != nil {
-		respondWithInternalError(c, err)
+	if err := executeFindOne(c, sectionCollection, query, &section); err != nil {
 		return
 	}
 
-	// return result
 	respond(c, http.StatusOK, "success", section)
 }
 

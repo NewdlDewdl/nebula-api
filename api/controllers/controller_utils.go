@@ -154,3 +154,19 @@ func makeHandler(flag string, handlerFn func(string, *gin.Context)) gin.HandlerF
 		handlerFn(flag, c)
 	}
 }
+
+// executeFindOne handles FindOne operations with error handling.
+// Returns an error if the operation fails, nil otherwise.
+// The result is stored in the provided result pointer.
+func executeFindOne[T any](c *gin.Context, collection *mongo.Collection, query bson.M, result *T) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err := collection.FindOne(ctx, query).Decode(result)
+	if err != nil {
+		respondWithInternalError(c, err)
+		return err
+	}
+
+	return nil
+}
