@@ -255,17 +255,17 @@ func buildPaginationStages(offset, limit interface{}) []bson.D {
 
 // PipelineConfig holds configuration for building relation query pipelines.
 type PipelineConfig struct {
-	MatchQuery          bson.M
-	PaginateMap         map[string]interface{}
-	LookupFrom          string
-	LookupLocalField    string
-	LookupForeignField  string
-	LookupAs            string
-	UnwindPath          string
-	ProjectFields       bson.D
-	ReplaceWithField    string
-	NeedsPagination     bool
-	NeedsProjectStage   bool
+	MatchQuery         bson.M
+	PaginateMap        map[string]interface{}
+	LookupFrom         string
+	LookupLocalField   string
+	LookupForeignField string
+	LookupAs           string
+	UnwindPath         string
+	ProjectFields      bson.D
+	ReplaceWithField   string
+	NeedsPagination    bool
+	NeedsProjectStage  bool
 }
 
 // Builds a standard pipeline for querying related entities.
