@@ -1,16 +1,21 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/UTDNebula/nebula-api/api/configs"
 	"github.com/UTDNebula/nebula-api/api/schema"
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Sets the API's response to a request, producing valid JSON given a status code and data.
@@ -81,4 +86,87 @@ func objectIDFromParam(c *gin.Context, paramName string) (*primitive.ObjectID, e
 		return nil, convertIdErr
 	}
 	return &objectId, nil
+}
+
+// getQueryWithPagination combines query construction and pagination setup.
+// Returns the query, pagination options, and any error that occurred.
+func getQueryWithPagination[T any](flag string, c *gin.Context) (bson.M, *options.FindOptions, error) {
+	query, err := getQuery[T](flag, c)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	optionLimit, err := configs.GetOptionLimit(&query, c)
+	if err != nil {
+		respond(c, http.StatusBadRequest, "offset is not type integer", err.Error())
+		return nil, nil, err
+	}
+
+	return query, optionLimit, nil
+}
+
+// executeFind handles Find operations with cursor iteration and error handling.
+// Returns an error if any operation fails, nil otherwise.
+// The results are stored in the provided result pointer.
+func executeFind[T any](c *gin.Context, collection *mongo.Collection, query bson.M, opts *options.FindOptions, result *[]T) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := collection.Find(ctx, query, opts)
+	if err != nil {
+		respondWithInternalError(c, err)
+		return err
+	}
+
+	if err = cursor.All(ctx, result); err != nil {
+		respondWithInternalError(c, err)
+		return err
+	}
+
+	return nil
+}
+
+// executeAggregate handles Aggregate operations with cursor iteration and error handling.
+// Returns an error if any operation fails, nil otherwise.
+// The results are stored in the provided result pointer.
+func executeAggregate[T any](c *gin.Context, collection *mongo.Collection, pipeline mongo.Pipeline, result *[]T) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		respondWithInternalError(c, err)
+		return err
+	}
+
+	if err = cursor.All(ctx, result); err != nil {
+		respondWithInternalError(c, err)
+		return err
+	}
+
+	return nil
+}
+
+// makeHandler creates a gin.HandlerFunc wrapper for a handler function.
+// This eliminates repetitive wrapper function definitions.
+func makeHandler(flag string, handlerFn func(string, *gin.Context)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		handlerFn(flag, c)
+	}
+}
+
+// executeFindOne handles FindOne operations with error handling.
+// Returns an error if the operation fails, nil otherwise.
+// The result is stored in the provided result pointer.
+func executeFindOne[T any](c *gin.Context, collection *mongo.Collection, query bson.M, result *T) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err := collection.FindOne(ctx, query).Decode(result)
+	if err != nil {
+		respondWithInternalError(c, err)
+		return err
+	}
+
+	return nil
 }
